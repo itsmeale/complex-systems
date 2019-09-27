@@ -78,6 +78,8 @@ def simula_atendimento(
 
     return x, y, w, tm
 
+def intervalo_confianca(v: np.array, size: int) -> float:
+    return 3.92 * (v.std() / np.sqrt(size))
 
 def simula_atendimento_wrapper(
     n: int,
