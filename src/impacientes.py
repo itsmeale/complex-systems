@@ -80,11 +80,12 @@ def simula_atendimento(
     return x, y, w, tm
 
 
-def intervalo_confianca(v: np.array, size: int) -> float:
+def intervalo_confianca(v: List, size: int) -> float:
     return 2 * 1.96 * std_error(v, size)
 
 
-def std_error(v: np.array, size: int) -> float:
+def std_error(v: List, size: int) -> float:
+    v = np.array(v)
     return v.std() / np.sqrt(size)
 
 
@@ -100,52 +101,56 @@ def simula_atendimento_wrapper(
     idx_steps = 0
     interv_confianca = 1
 
-    X = np.zeros(simulations)
-    Y = np.zeros(simulations)
-    W = np.zeros(simulations)
-    TM = np.zeros(simulations)
-    LS_w = np.zeros(simulations//steps+1)
-    LI_w = np.zeros(simulations//steps+1)
-    LS_tm = np.zeros(simulations//steps+1)
-    LI_tm = np.zeros(simulations//steps+1)
+    X = []
+    Y = []
+    W = []
+    TM = []
+    LS_w = []
+    LI_w = []
+    LS_tm = []
+    LI_tm = []
 
-    while interv_confianca >= 0.0005:
+    while interv_confianca >= 0.005:
 
         for i in range(steps):
             xi, yi, wi, tmi = simula_atendimento(n, lambd, mi, T)
-            X[idx] = xi
-            Y[idx] = yi
-            W[idx] = wi
-            TM[idx] = tmi
-            idx += 1
+            X.append(xi)
+            Y.append(yi)
+            W.append(wi)
+            TM.append(tmi)
 
-        std_error_w = std_error(W, idx)
-        std_error_tm = std_error(TM, idx)
+        interv_confianca = intervalo_confianca(W, len(W))
+        print(f"{len(W)} | intervalo de confianca {intervalo_confianca(W, len(W))}", end='\r')
+    
+        #! create LS, LI vectors
 
-        LS_w[idx_steps] = W.mean() + std_error_w
-        LI_w[idx_steps] = W.mean() - std_error_w
-        LS_tm[idx_steps] = TM.mean() + std_error_tm
-        LI_tm[idx_steps] = TM.mean() - std_error_tm
+        std_error_w = std_error(W, len(W))
+        std_error_tm = std_error(TM, len(TM))
 
-        idx_steps += 1
-        interv_confianca = intervalo_confianca(W, idx)
-        print(f"{idx}: intervalo de confianca {intervalo_confianca(W, idx)/2}")
+        LS_w.append(mean(W) + std_error_w)
+        LI_w.append(mean(W) - std_error_w)
+        LS_tm.append(mean(TM) + std_error_tm)
+        LI_tm.append(mean(TM) - std_error_tm)
 
-    n = idx
-    intervalos = [LS_w, LI_w, LS_tm, LI_tm]
     simulacoes = [X, Y, W, TM]
+    erros_padrao = [LS_w, LI_w, LS_tm, LI_tm]
     medias_moveis = [
-        media_movel(X, n, steps),
-        media_movel(Y, n, steps),
-        media_movel(W, n, steps),
-        media_movel(TM, n, steps)
+        media_movel(X, len(X), steps),
+        media_movel(Y, len(Y), steps),
+        media_movel(W, len(W), steps),
+        media_movel(TM, len(TM), steps)
     ]
-    k_set = [steps*i for i in range(1, (n//steps)+1)]
+    k_set = [steps*i for i in range(1, (len(W)//steps)+1)]
 
-    return simulacoes, intervalos, medias_moveis, k_set
+    return simulacoes, medias_moveis, erros_padrao, k_set
 
 
-def media_movel(X: np.array, size: int, steps: int):
+def mean(v):
+    return np.array(v).mean()
+
+
+def media_movel(X: List, size: int, steps: int):
+    X = np.array(X)
     ks = [steps*i for i in range(1, (size//steps)+1)]
     X_temp = np.zeros(len(ks))
 
@@ -156,9 +161,4 @@ def media_movel(X: np.array, size: int, steps: int):
 
 
 if __name__ == "__main__":
-    # ux, uy, uw, utm = simula_atendimento_wrapper(5, 3, .5, 50)
-    # print(f"media aceita: {ux}")
-    # print(f"media rejeitada: {uy}")
-    # print(f"proporcao de rejeitadas: {uw}")
-    # print(f"tempo maximo (media): {utm}")
-    pass
+    simula_atendimento_wrapper(5, 3, .5, 50)
